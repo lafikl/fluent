@@ -1,13 +1,34 @@
+// Fluent HTTP client for Golang. With timeout, retries and exponential back-off support. 
+// 
+// Example:
+// 	package main
+// 
+// 	import (
+//  	 "github.com/lafikl/go-fluent"
+//  	 "fmt"
+// 	)
+// 
+// 	func main() {
+//  	req := fluent.New()
+//  	res, err := req.Get("http://example.com").Retry(3).Send()
+// 
+//  	if err != nil {
+//			fmt.Println(err)
+//			return 
+//   	}
+// 
+//   	fmt.Println(res)
+// 	}
 package fluent
 
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"github.com/lafikl/backoff"
+	"io"
 	"net/http"
 	"time"
-	"errors"
-	"io"
 )
 
 type Request struct {
@@ -22,7 +43,7 @@ type Request struct {
 	res       *http.Response
 	err       error
 	backoff   *backoff.ExponentialBackOff
-	req 			*http.Request
+	req       *http.Request
 }
 
 func (f *Request) newClient() *http.Client {
@@ -61,7 +82,7 @@ func (f *Request) Method(method string) *Request {
 }
 
 // This is a shorthand method that calls f.Method with `POST`
-// and calls f.Url with the url you give to her 
+// and calls f.Url with the url you give to her
 func (f *Request) Post(url string) *Request {
 	f.Url(url).Method("POST")
 	return f
@@ -93,7 +114,7 @@ func (f *Request) Delete(url string) *Request {
 
 // A handy method for sending json without needing to Marshal it yourself
 // This method will override whatever you pass to f.Body
-// And it sets the content-type to "application/json" 
+// And it sets the content-type to "application/json"
 func (f *Request) Json(j interface{}) *Request {
 	f.json = j
 	f.jsonIsSet = true
@@ -108,7 +129,7 @@ func (f *Request) Body(b io.Reader) *Request {
 }
 
 // sets the header entries associated with key to the element value.
-// 
+//
 // It replaces any existing values associated with key.
 func (f *Request) SetHeader(key, value string) *Request {
 	f.header[key] = value
@@ -127,38 +148,58 @@ func (f *Request) Timeout(t time.Duration) *Request {
 	return f
 }
 
-// The initial interval for the request backoff operation
-// the default is `500 * time.Millisecond`
+// The initial interval for the request backoff operation.
+//
+// the default is 500 * time.Millisecond
+//
+// For more information http://godoc.org/github.com/cenkalti/backoff#ExponentialBackOff
 func (f *Request) InitialInterval(t time.Duration) *Request {
 	f.backoff.InitialInterval = t
 	return f
 }
 
+// Set the Randomization factor for the backoff.
+//
+// the default is 0.5
+//
+// For more information http://godoc.org/github.com/cenkalti/backoff#ExponentialBackOff
 func (f *Request) RandomizationFactor(rf float64) *Request {
 	f.backoff.RandomizationFactor = rf
 	return f
 }
 
+// Set the Multiplier for the backoff.
+//
+// The default is 1.5.
+//
+// For more information http://godoc.org/github.com/cenkalti/backoff#ExponentialBackOff
 func (f *Request) Multiplier(m float64) *Request {
 	f.backoff.Multiplier = m
 	return f
 }
 
+// Set the Max Interval for the backoff.
+//
+// The default is 60 * time.Second
+//
+// For more information http://godoc.org/github.com/cenkalti/backoff#ExponentialBackOff
 func (f *Request) MaxInterval(mi time.Duration) *Request {
 	f.backoff.MaxInterval = mi
 	return f
 }
 
+// Set the Max Elapsed Time for the backoff.
+//
+// The default is 15 * time.Minute.
+//
+// For more information http://godoc.org/github.com/cenkalti/backoff#ExponentialBackOff
 func (f *Request) MaxElapsedTime(me time.Duration) *Request {
 	f.backoff.MaxElapsedTime = me
 	return f
 }
 
-func (f *Request) Clock(c backoff.Clock) *Request {
-	f.backoff.Clock = c
-	return f
-}
-
+// Set how many times to retry if the request
+// timedout or the server returned 5xx response.
 func (f *Request) Retry(r int) *Request {
 	f.retry = r
 	return f
@@ -175,7 +216,7 @@ func doReq(f *Request, c *http.Client) error {
 	}
 	res, err := c.Do(f.req)
 	// if there's an error in the request
-	// and there's no retries, then we just return whatever err we got
+	// then we just return whatever err we got
 	if err != nil {
 		f.err = err
 		return nil
@@ -185,7 +226,7 @@ func doReq(f *Request, c *http.Client) error {
 		return errors.New("Server Error")
 	}
 	if res != nil {
-		f.res = res	
+		f.res = res
 	}
 	return nil
 }
@@ -199,11 +240,11 @@ func (f *Request) operation(c *http.Client) func() error {
 func (f *Request) do(c *http.Client) (*http.Response, error) {
 	err := doReq(f, c)
 	if err != nil {
-			op := f.operation(c)
-			err = backoff.Retry(op, f.backoff)
-			if err != nil {
-				return nil, err
-			}
+		op := f.operation(c)
+		err = backoff.Retry(op, f.backoff)
+		if err != nil {
+			return nil, err
+		}
 	}
 	// Check if has operation failed after the retries
 	if f.err != nil {
@@ -212,12 +253,17 @@ func (f *Request) do(c *http.Client) (*http.Response, error) {
 	return f.res, err
 }
 
+// It will construct the client and the request, then send it
+//
+// This function has to be called as the last thing,
+// after setting the other properties
 func (f *Request) Send() (*http.Response, error) {
 	c := f.newClient()
 	res, err := f.do(c)
 	return res, err
 }
 
+// Create a new request
 func New() *Request {
 	f := &Request{}
 	f.header = map[string]string{}
