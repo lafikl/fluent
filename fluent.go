@@ -170,7 +170,7 @@ func (f *request) Send() (*http.Response, error) {
 
 func New() *request {
 	f := new(request)
-	f.header = make(map[string]string)
+	f.header = map[string]string{}
 	f.backoff = backoff.NewExponentialBackOff()
 	f.err = nil
 	return f
