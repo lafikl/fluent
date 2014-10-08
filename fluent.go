@@ -1,24 +1,4 @@
 // Fluent HTTP client for Golang. With timeout, retries and exponential back-off support. 
-// 
-// Example:
-// 	package main
-// 
-// 	import (
-//  	 "github.com/lafikl/go-fluent"
-//  	 "fmt"
-// 	)
-// 
-// 	func main() {
-//  	req := fluent.New()
-//  	res, err := req.Get("http://example.com").Retry(3).Send()
-// 
-//  	if err != nil {
-//			fmt.Println(err)
-//			return 
-//   	}
-// 
-//   	fmt.Println(res)
-// 	}
 package fluent
 
 import (
