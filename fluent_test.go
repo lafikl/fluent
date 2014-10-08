@@ -68,6 +68,24 @@ func TestPut(t *testing.T) {
   }
 }
 
+func TestPatch(t *testing.T) {
+  ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    body, _ := ioutil.ReadAll(r.Body)
+    defer r.Body.Close()
+    fmt.Fprintln(w, string(body))
+  }))
+  defer ts.Close()
+
+  req := New()
+  res, err := req.Patch(ts.URL).Send()
+  if err != nil {
+    t.Fatal(err)
+  }
+
+  if method := res.Request.Method; method != "PATCH" {
+    t.Fatal("Method sent is not PATCH")
+  }
+}
 
 func TestBody(t *testing.T) {
   ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

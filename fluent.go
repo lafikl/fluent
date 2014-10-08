@@ -58,6 +58,12 @@ func (f *request) Put(url string) *request {
 	return f
 }
 
+func (f *request) Patch(url string) *request {
+	f.url = url
+	f.method = "PATCH"
+	return f
+}
+
 func (f *request) Get(url string) *request {
 	f.url = url
 	f.method = "GET"
