@@ -10,7 +10,7 @@ import (
 	"io"
 )
 
-type request struct {
+type Request struct {
 	header    map[string]string
 	method    string
 	json      interface{}
@@ -25,11 +25,11 @@ type request struct {
 	req 			*http.Request
 }
 
-func (f *request) newClient() *http.Client {
+func (f *Request) newClient() *http.Client {
 	return &http.Client{Timeout: f.timeout}
 }
 
-func (f *request) newRequest() (*http.Request, error) {
+func (f *Request) newRequest() (*http.Request, error) {
 	var req *http.Request
 	var err error
 	if f.jsonIsSet {
@@ -48,45 +48,45 @@ func (f *request) newRequest() (*http.Request, error) {
 
 // Set the request URL
 // You probably want to use the methods [Post, Get, Patch, Delete, Put]
-func (f *request) Url(url string) *request {
+func (f *Request) Url(url string) *Request {
 	f.url = url
 	return f
 }
 
 // Set the request Method
 // You probably want to use the methods [Post, Get, Patch, Delete, Put]
-func (f *request) Method(method string) *request {
+func (f *Request) Method(method string) *Request {
 	f.method = method
 	return f
 }
 
 // This is a shorthand method that calls f.Method with `POST`
 // and calls f.Url with the url you give to her 
-func (f *request) Post(url string) *request {
+func (f *Request) Post(url string) *Request {
 	f.Url(url).Method("POST")
 	return f
 }
 
 // Same as f.Post but the method is `PUT`
-func (f *request) Put(url string) *request {
+func (f *Request) Put(url string) *Request {
 	f.Url(url).Method("PUT")
 	return f
 }
 
 // Same as f.Post but the method is `PATCH`
-func (f *request) Patch(url string) *request {
+func (f *Request) Patch(url string) *Request {
 	f.Url(url).Method("PATCH")
 	return f
 }
 
 // Same as f.Post but the method is `GET`
-func (f *request) Get(url string) *request {
+func (f *Request) Get(url string) *Request {
 	f.Url(url).Method("GET")
 	return f
 }
 
 // Same as f.Post but the method is `DELETE`
-func (f *request) Delete(url string) *request {
+func (f *Request) Delete(url string) *Request {
 	f.Url(url).Method("DELETE")
 	return f
 }
@@ -94,7 +94,7 @@ func (f *request) Delete(url string) *request {
 // A handy method for sending json without needing to Marshal it yourself
 // This method will override whatever you pass to f.Body
 // And it sets the content-type to "application/json" 
-func (f *request) Json(j interface{}) *request {
+func (f *Request) Json(j interface{}) *Request {
 	f.json = j
 	f.jsonIsSet = true
 	f.SetHeader("Content-type", "application/json")
@@ -102,7 +102,7 @@ func (f *request) Json(j interface{}) *request {
 }
 
 // Whatever you pass to it will be passed to http.NewRequest
-func (f *request) Body(b io.Reader) *request {
+func (f *Request) Body(b io.Reader) *Request {
 	f.body = b
 	return f
 }
@@ -110,7 +110,7 @@ func (f *request) Body(b io.Reader) *request {
 // sets the header entries associated with key to the element value.
 // 
 // It replaces any existing values associated with key.
-func (f *request) SetHeader(key, value string) *request {
+func (f *Request) SetHeader(key, value string) *Request {
 	f.header[key] = value
 	return f
 }
@@ -122,49 +122,49 @@ func (f *request) SetHeader(key, value string) *request {
 // interrupt reading of the Response.Body.
 //
 // A Timeout of zero means no timeout.
-func (f *request) Timeout(t time.Duration) *request {
+func (f *Request) Timeout(t time.Duration) *Request {
 	f.timeout = t
 	return f
 }
 
 // The initial interval for the request backoff operation
 // the default is `500 * time.Millisecond`
-func (f *request) InitialInterval(t time.Duration) *request {
+func (f *Request) InitialInterval(t time.Duration) *Request {
 	f.backoff.InitialInterval = t
 	return f
 }
 
-func (f *request) RandomizationFactor(rf float64) *request {
+func (f *Request) RandomizationFactor(rf float64) *Request {
 	f.backoff.RandomizationFactor = rf
 	return f
 }
 
-func (f *request) Multiplier(m float64) *request {
+func (f *Request) Multiplier(m float64) *Request {
 	f.backoff.Multiplier = m
 	return f
 }
 
-func (f *request) MaxInterval(mi time.Duration) *request {
+func (f *Request) MaxInterval(mi time.Duration) *Request {
 	f.backoff.MaxInterval = mi
 	return f
 }
 
-func (f *request) MaxElapsedTime(me time.Duration) *request {
+func (f *Request) MaxElapsedTime(me time.Duration) *Request {
 	f.backoff.MaxElapsedTime = me
 	return f
 }
 
-func (f *request) Clock(c backoff.Clock) *request {
+func (f *Request) Clock(c backoff.Clock) *Request {
 	f.backoff.Clock = c
 	return f
 }
 
-func (f *request) Retry(r int) *request {
+func (f *Request) Retry(r int) *Request {
 	f.retry = r
 	return f
 }
 
-func doReq(f *request, c *http.Client) error {
+func doReq(f *Request, c *http.Client) error {
 	var reqErr error
 	f.req, reqErr = f.newRequest()
 	if reqErr != nil {
@@ -190,13 +190,13 @@ func doReq(f *request, c *http.Client) error {
 	return nil
 }
 
-func (f *request) operation(c *http.Client) func() error {
+func (f *Request) operation(c *http.Client) func() error {
 	return func() error {
 		return doReq(f, c)
 	}
 }
 
-func (f *request) do(c *http.Client) (*http.Response, error) {
+func (f *Request) do(c *http.Client) (*http.Response, error) {
 	err := doReq(f, c)
 	if err != nil {
 			op := f.operation(c)
@@ -212,14 +212,14 @@ func (f *request) do(c *http.Client) (*http.Response, error) {
 	return f.res, err
 }
 
-func (f *request) Send() (*http.Response, error) {
+func (f *Request) Send() (*http.Response, error) {
 	c := f.newClient()
 	res, err := f.do(c)
 	return res, err
 }
 
-func New() *request {
-	f := new(request)
+func New() *Request {
+	f := &Request{}
 	f.header = map[string]string{}
 	f.backoff = backoff.NewExponentialBackOff()
 	f.err = nil
