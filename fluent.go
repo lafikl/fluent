@@ -4,23 +4,25 @@ import (
 	"bytes"
 	"encoding/json"
 	"./vendor/backoff"
-	"io"
 	"net/http"
 	"time"
+	"errors"
+	"io"
 )
 
 type request struct {
 	header    map[string]string
 	method    string
-	body      io.Reader
 	json      interface{}
 	jsonIsSet bool
 	url       string
 	retry     int
 	timeout   time.Duration
+	body      io.Reader
 	res       *http.Response
 	err       error
 	backoff   *backoff.ExponentialBackOff
+	req 			*http.Request
 }
 
 func (f *request) newClient() *http.Client {
@@ -75,6 +77,11 @@ func (f *request) Json(j interface{}) *request {
 	return f
 }
 
+func (f *request) Body(b io.Reader) *request {
+	f.body = b
+	return f
+}
+
 func (f *request) SetHeader(key, value string) *request {
 	f.header[key] = value
 	return f
@@ -120,29 +127,36 @@ func (f *request) Retry(r int) *request {
 	return f
 }
 
-func (f *request) operation(c *http.Client, req *http.Request) func() error {
+func (f *request) operation(c *http.Client) func() error {
 	return func() error {
-		res, err := c.Do(req)
+		var reqErr error
+		f.req, reqErr = f.newRequest()
+		if reqErr != nil {
+			return reqErr
+		}
+		for k, v := range f.header {
+			f.req.Header.Set(k, v)
+		}
+		res, err := c.Do(f.req)
 		// if there's an error in the request
 		// and there's no retries, then we just return whatever err we got
-		if err != nil && f.retry <= 0 {
+		if err != nil {
 			f.err = err
 			return nil
-		} else if err != nil {
-			// We still have retries, let's retry it!
-			f.retry--
-			return err
-		} else if res.StatusCode >= 500 && res.StatusCode <= 599 {
-			f.retry--
-			return err
 		}
-		f.res = res
+		if res != nil && res.StatusCode >= 500 && res.StatusCode <= 599 && f.retry > 0 {
+			f.retry--
+			return errors.New("Server Error")
+		}
+		if res != nil {
+			f.res = res	
+		}
 		return nil
 	}
 }
 
-func (f *request) do(c *http.Client, req *http.Request) (*http.Response, error) {
-	op := f.operation(c, req)
+func (f *request) do(c *http.Client) (*http.Response, error) {
+	op := f.operation(c)
 
 	err := backoff.Retry(op, f.backoff)
 	if err != nil {
@@ -157,14 +171,7 @@ func (f *request) do(c *http.Client, req *http.Request) (*http.Response, error) 
 
 func (f *request) Send() (*http.Response, error) {
 	c := f.newClient()
-	req, reqErr := f.newRequest()
-	if reqErr != nil {
-		return nil, reqErr
-	}
-	for k, v := range f.header {
-		req.Header.Set(k, v)
-	}
-	res, err := f.do(c, req)
+	res, err := f.do(c)
 	return res, err
 }
 
