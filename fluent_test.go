@@ -98,11 +98,9 @@ func TestBody(t *testing.T) {
   msg := "Hello wld!"
   req := New()
   req.Post(ts.URL).
-  Body(bytes.NewReader([]byte(msg))).
-  Retry(2)
+  Body(bytes.NewReader([]byte(msg)))
   res, err := req.Send()
   if err != nil {
-    fmt.Println("errrrrr")
     t.Fatal(err)
   }
   body, err := ioutil.ReadAll(res.Body)
@@ -117,6 +115,34 @@ func TestBody(t *testing.T) {
   }
 }
 
+func TestJson(t *testing.T) {
+  ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    body, _ := ioutil.ReadAll(r.Body)
+    defer r.Body.Close()
+    fmt.Fprintf(w, string(body))
+  }))
+  defer ts.Close()
+
+  arr := []int{1, 2, 3}
+  req := New()
+  req.Post(ts.URL).
+  Json(arr)
+  res, err := req.Send()
+  if err != nil {
+    t.Fatal(err)
+  }
+  body, err := ioutil.ReadAll(res.Body)
+  res.Body.Close()
+  if err != nil {
+    t.Fatal(err)
+  }
+  b := string(body)
+  b = strings.Trim(b, " \n")
+  if b != "[1,2,3]" {
+    t.Fatalf("JSON sent doesn't match %s", b)
+  }
+}
+
 func TestRetries(t *testing.T) {
   retry := 3
   ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -127,7 +153,7 @@ func TestRetries(t *testing.T) {
   req := New()
   req.Post(ts.URL).
   InitialInterval(time.Duration(time.Millisecond)).
-  Json([]byte(`[1,2,3]`)).
+  Json([]int{1,3,4}).
   Retry(retry)
   if req.retry != retry {
     t.Fatalf("Retries didn't apply!")
