@@ -3,7 +3,7 @@ package fluent
 import (
 	"bytes"
 	"encoding/json"
-	"./vendor/backoff"
+	"github.com/lafikl/backoff"
 	"net/http"
 	"time"
 	"errors"
