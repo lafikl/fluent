@@ -3,7 +3,7 @@ package fluent
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/cenkalti/backoff"
+	"./vendor/backoff"
 	"io"
 	"net/http"
 	"time"
