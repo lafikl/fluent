@@ -18,7 +18,8 @@ func main() {
   req := fluent.New()
   req.Post("http://example.com").
     InitialInterval(time.Duration(time.Millisecond)).
-    Json([]int{1, 3, 4}).Retry(3)
+    Json([]int{1, 3, 4}).
+    Retry(3)
 
   res, err := req.Send()
 
