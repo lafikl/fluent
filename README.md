@@ -10,7 +10,7 @@ package main
 
 import (
   "fmt"
-  "github.com/lafikl/go-fluent"
+  "github.com/lafikl/fluent"
   "time"
 )
 
@@ -37,7 +37,7 @@ func main() {
 
 ```
 
-http://godoc.org/github.com/lafikl/go-fluent
+http://godoc.org/github.com/lafikl/fluent
 
 
 **NOTE:** I'm still new to Go so if you find anything that isn't Go idiomatic, please open an issue :+1:
