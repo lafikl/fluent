@@ -9,16 +9,19 @@ Usage:
 package main
 
 import (
-  "github.com/lafikl/go-fluent"
   "fmt"
+  "github.com/lafikl/go-fluent"
+  "time"
 )
 
 func main() {
   req := fluent.New()
-  req.Get("http://example.com")
+  req.Post("http://example.com")
+  req.InitialInterval(time.Duration(time.Millisecond))
+  req.Json([]int{1, 3, 4})
   req.Retry(3)
-  // They're chaniable too 
-  // req.Get("http://example.com").Retry(3)
+  // They're chaniable too
+  // for example: req.Get("http://example.com").Retry(3)
 
   res, err := req.Send()
 
