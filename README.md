@@ -16,12 +16,9 @@ import (
 
 func main() {
   req := fluent.New()
-  req.Post("http://example.com")
-  req.InitialInterval(time.Duration(time.Millisecond))
-  req.Json([]int{1, 3, 4})
-  req.Retry(3)
-  // They're chaniable too
-  // for example: req.Get("http://example.com").Retry(3)
+  req.Post("http://example.com").
+    InitialInterval(time.Duration(time.Millisecond)).
+    Json([]int{1, 3, 4}).Retry(3)
 
   res, err := req.Send()
 
@@ -30,6 +27,11 @@ func main() {
   }
 
   fmt.Println("donne ", res)
+
+  // They can be separated if you don't like chaining ;)
+  // for example:
+  // req.Get("http://example.com")
+  // req.Retry(3)
 }
 
 ```
