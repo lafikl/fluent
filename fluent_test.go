@@ -3,7 +3,7 @@ package fluent
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,16 +11,26 @@ import (
 	"time"
 )
 
-func TestGet(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := ioutil.ReadAll(r.Body)
+func readAllString(r io.Reader) (string, error) {
+	var buf bytes.Buffer
+	if _, err := buf.ReadFrom(r); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+var copyHandlerFunc = http.HandlerFunc(
+	func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		fmt.Fprintln(w, string(body))
-	}))
+		io.Copy(w, r.Body)
+	},
+)
+
+func TestGet(t *testing.T) {
+	ts := httptest.NewServer(copyHandlerFunc)
 	defer ts.Close()
 
-	req := New()
-	res, err := req.Get(ts.URL).Send()
+	res, err := New().Get(ts.URL).Send()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,128 +41,100 @@ func TestGet(t *testing.T) {
 }
 
 func TestPost(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := ioutil.ReadAll(r.Body)
-		defer r.Body.Close()
-		fmt.Fprintln(w, string(body))
-	}))
+	ts := httptest.NewServer(copyHandlerFunc)
 	defer ts.Close()
 
-	req := New()
-	res, err := req.Post(ts.URL).Send()
+	res, err := New().Post(ts.URL).Send()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if method := res.Request.Method; method != "POST" {
+	if res.Request.Method != "POST" {
 		t.Fatal("Method sent is not POST")
 	}
 }
 
 func TestPut(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := ioutil.ReadAll(r.Body)
-		defer r.Body.Close()
-		fmt.Fprintln(w, string(body))
-	}))
+	ts := httptest.NewServer(copyHandlerFunc)
 	defer ts.Close()
 
-	req := New()
-	res, err := req.Put(ts.URL).Send()
+	res, err := New().Put(ts.URL).Send()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if method := res.Request.Method; method != "PUT" {
+	if res.Request.Method != "PUT" {
 		t.Fatal("Method sent is not PUT")
 	}
 }
 
 func TestPatch(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := ioutil.ReadAll(r.Body)
-		defer r.Body.Close()
-		fmt.Fprintln(w, string(body))
-	}))
+	ts := httptest.NewServer(copyHandlerFunc)
 	defer ts.Close()
 
-	req := New()
-	res, err := req.Patch(ts.URL).Send()
+	res, err := New().Patch(ts.URL).Send()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if method := res.Request.Method; method != "PATCH" {
+	if res.Request.Method != "PATCH" {
 		t.Fatal("Method sent is not PATCH")
 	}
 }
 
 func TestBody(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := ioutil.ReadAll(r.Body)
-		defer r.Body.Close()
-		fmt.Fprintf(w, string(body))
-	}))
+	ts := httptest.NewServer(copyHandlerFunc)
 	defer ts.Close()
 
-	msg := "Hello wld!"
-	req := New()
-	req.Post(ts.URL).
-		Body(bytes.NewReader([]byte(msg)))
-	res, err := req.Send()
+	msg := "Hello world!"
+	res, err := New().
+		Post(ts.URL).
+		Body(strings.NewReader(msg)).
+		Send()
 	if err != nil {
 		t.Fatal(err)
 	}
-	body, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
+	defer res.Body.Close()
+	body, err := readAllString(res.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b := string(body)
-	b = strings.Trim(b, " \n")
-	if b != msg {
-		t.Fatalf("Body sent %s doesn't match %s", msg, b)
+	if body != msg {
+		t.Fatalf("Body sent %s doesn't match %s", msg, body)
 	}
 }
 
 func TestJson(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := ioutil.ReadAll(r.Body)
-		defer r.Body.Close()
-		fmt.Fprintf(w, string(body))
-	}))
+	ts := httptest.NewServer(copyHandlerFunc)
 	defer ts.Close()
 
 	arr := []int{1, 2, 3}
-	req := New()
-	req.Post(ts.URL).
-		Json(arr)
-	res, err := req.Send()
+	res, err := New().Post(ts.URL).Json(arr).Send()
 	if err != nil {
 		t.Fatal(err)
 	}
-	body, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
+	defer res.Body.Close()
+	body, err := readAllString(res.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b := string(body)
-	b = strings.Trim(b, " \n")
-	if b != "[1,2,3]" {
-		t.Fatalf("JSON sent doesn't match %s", b)
+	if body != "[1,2,3]" {
+		t.Fatalf("JSON sent doesn't match %s", body)
 	}
 }
 
 func TestRetries(t *testing.T) {
 	retry := 3
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(500)
-	}))
+	ts := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(500)
+		}),
+	)
 	defer ts.Close()
 
 	req := New()
 	req.Post(ts.URL).
-		InitialInterval(time.Duration(time.Millisecond)).
+		InitialInterval(time.Millisecond).
 		Json([]int{1, 3, 4}).
 		Retry(retry)
 	if req.retry != retry {
@@ -169,16 +151,14 @@ func TestRetries(t *testing.T) {
 	}
 }
 
-
 func Example() {
-   req := fluent.New()
-   res, err := req.Get("http://example.com").Retry(3).Send()
-   if err != nil {
-     fmt.Println(err)
-     return 
-   }
+	_, err := New().Get("http://example.com").Retry(3).Send()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-   fmt.Println("it worked!")
-   // Output:
-   // it worked!
+	fmt.Println("it worked!")
+	// Output:
+	// it worked!
 }
