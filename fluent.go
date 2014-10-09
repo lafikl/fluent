@@ -1,12 +1,12 @@
-// Fluent HTTP client for Golang. With timeout, retries and exponential back-off support. 
+// Fluent HTTP client for Golang. With timeout, retries and exponential back-off support.
 package fluent
 
 import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/lafikl/backoff"
 	"io"
+	"github.com/lafikl/backoff"
 	"net/http"
 	"time"
 )
@@ -30,21 +30,17 @@ func (f *Request) newClient() *http.Client {
 	return &http.Client{Timeout: f.timeout}
 }
 
-func (f *Request) newRequest() (*http.Request, error) {
-	var req *http.Request
-	var err error
+func (f *Request) newRequest() (req *http.Request, err error) {
 	if f.jsonIsSet {
 		body, jsonErr := json.Marshal(f.json)
 		if jsonErr != nil {
 			return nil, jsonErr
 		}
 		req, err = http.NewRequest(f.method, f.url, bytes.NewReader(body))
-	} else if f.body != nil {
-		req, err = http.NewRequest(f.method, f.url, f.body)
 	} else {
-		req, err = http.NewRequest(f.method, f.url, nil)
+		req, err = http.NewRequest(f.method, f.url, f.body)
 	}
-	return req, err
+	return
 }
 
 // Set the request URL
