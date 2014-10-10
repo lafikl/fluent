@@ -5,8 +5,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
 	"github.com/lafikl/backoff"
+	"io"
 	"net/http"
 	"time"
 )
@@ -234,7 +234,10 @@ func (f *Request) do(c *http.Client) (*http.Response, error) {
 // This function has to be called as the last thing,
 // after setting the other properties
 func (f *Request) Send() (*http.Response, error) {
-	c := f.newClient()
+	c := http.DefaultClient
+	if f.timeout != 0 {
+		c = f.newClient()
+	}
 	res, err := f.do(c)
 	return res, err
 }

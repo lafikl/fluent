@@ -150,15 +150,3 @@ func TestRetries(t *testing.T) {
 		t.Fatalf("Fluent exited without finishing retries")
 	}
 }
-
-func Example() {
-	_, err := New().Get("http://example.com").Retry(3).Send()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	fmt.Println("it worked!")
-	// Output:
-	// it worked!
-}
