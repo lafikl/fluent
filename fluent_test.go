@@ -82,6 +82,20 @@ func TestPatch(t *testing.T) {
 	}
 }
 
+func TestDelete(t *testing.T) {
+	ts := httptest.NewServer(copyHandlerFunc)
+	defer ts.Close()
+
+	res, err := New().Delete(ts.URL).Send()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.Request.Method != "DELETE" {
+		t.Fatal("Method sent is not DELETE")
+	}
+}
+
 func TestBody(t *testing.T) {
 	ts := httptest.NewServer(copyHandlerFunc)
 	defer ts.Close()
@@ -148,5 +162,59 @@ func TestRetries(t *testing.T) {
 
 	if req.retry != 0 {
 		t.Fatalf("Fluent exited without finishing retries")
+	}
+}
+
+func TestTimeout(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(500)
+		}),
+	)
+	defer ts.Close()
+	req := New()
+	req.Get(ts.URL).Timeout(time.Duration(time.Second)).Send()
+	if req.timeout == 0 {
+		t.Fatal("timeout should be more than zero")
+	}
+
+	c := req.newClient()
+	if c.Timeout == 0 {
+		t.Fatal("Client timeout should be more than zero")
+	}
+}
+
+func TestRandomizationFactor(t *testing.T) {
+	req := New()
+	req.RandomizationFactor(0.6)
+	// 0.5 is the default that's why i'm testing against it
+	if req.backoff.RandomizationFactor != 0.6 {
+		t.Fatal("RandomizationFactor should be 0.6")
+	}
+}
+
+func TestMultiplier(t *testing.T) {
+	req := New()
+	req.Multiplier(2.0)
+	if req.backoff.Multiplier != 2.0 {
+		t.Fatal("Multiplier should be 2.0")
+	}
+}
+
+func TestMaxInterval(t *testing.T) {
+	interval := time.Duration(20 * time.Second)
+	req := New()
+	req.MaxInterval(interval)
+	if req.backoff.MaxInterval != interval {
+		t.Fatalf("MaxInterval should be %s", interval)
+	}
+}
+
+func TestMaxElapsedTime(t *testing.T) {
+	elapsed := time.Duration(20 * time.Second)
+	req := New()
+	req.MaxElapsedTime(elapsed)
+	if req.backoff.MaxElapsedTime != elapsed {
+		t.Fatalf("MaxElapsedTime should be %s", elapsed)
 	}
 }
