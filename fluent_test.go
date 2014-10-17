@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -216,5 +217,44 @@ func TestMaxElapsedTime(t *testing.T) {
 	req.MaxElapsedTime(elapsed)
 	if req.backoff.MaxElapsedTime != elapsed {
 		t.Fatalf("MaxElapsedTime should be %s", elapsed)
+	}
+}
+
+func TestProxy(t *testing.T) {
+	proxy := "http://localhost:8080"
+	req := New().Proxy(proxy)
+	if req.proxy != proxy {
+		t.Fatal("Proxy should be", proxy)
+	}
+}
+
+func TestProxiedRequest(t *testing.T) {
+	url := "http://github.com/"
+
+	ts := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(r.RequestURI))
+		}),
+	)
+
+	rsp, err := New().Proxy(ts.URL).Get(url).Send()
+	if err != nil {
+		t.Error(err)
+	}
+
+	body, err := ioutil.ReadAll(rsp.Body)
+	if err != nil {
+		t.Error(err)
+	}
+	rsp.Body.Close()
+
+	if string(body) != url {
+		t.Fatalf("Response from proxy server should be %s, got %s", url, body)
+	}
+}
+
+func TestInvalidProxyURL(t *testing.T) {
+	if _, err := New().Proxy("%gh&%ij").Get("/").Send(); err == nil {
+		t.Fatal("Expecting error due to invalid proxy URL")
 	}
 }
