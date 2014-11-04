@@ -5,10 +5,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/lafikl/backoff"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
+
+	"github.com/lafikl/backoff"
 )
 
 type Request struct {
@@ -24,6 +26,7 @@ type Request struct {
 	err       error
 	backoff   *backoff.ExponentialBackOff
 	req       *http.Request
+	proxy     string
 }
 
 func (f *Request) newClient() *http.Client {
@@ -181,6 +184,12 @@ func (f *Request) Retry(r int) *Request {
 	return f
 }
 
+// Set a HTTP proxy
+func (f *Request) Proxy(p string) *Request {
+	f.proxy = p
+	return f
+}
+
 func doReq(f *Request, c *http.Client) error {
 	var reqErr error
 	f.req, reqErr = f.newRequest()
@@ -234,11 +243,25 @@ func (f *Request) do(c *http.Client) (*http.Response, error) {
 // This function has to be called as the last thing,
 // after setting the other properties
 func (f *Request) Send() (*http.Response, error) {
-	c := http.DefaultClient
+	c := *http.DefaultClient
 	if f.timeout != 0 {
-		c = f.newClient()
+		nc := f.newClient()
+		c = *nc
 	}
-	res, err := f.do(c)
+
+	if f.proxy != "" {
+		proxyUrl, err := url.Parse(f.proxy)
+
+		if err != nil {
+			return nil, err
+		}
+
+		c.Transport = &http.Transport{
+			Proxy: http.ProxyURL(proxyUrl),
+		}
+	}
+
+	res, err := f.do(&c)
 	return res, err
 }
 
