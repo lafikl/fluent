@@ -1,4 +1,4 @@
-go-fluent
+Fluent
 =========
 
 Fluent HTTP client for Golang. With timeout, retries and exponential back-off support.
@@ -40,4 +40,3 @@ func main() {
 http://godoc.org/github.com/lafikl/fluent
 
 
-**NOTE:** I'm still new to Go so if you find anything that isn't Go idiomatic, please open an issue :+1:
